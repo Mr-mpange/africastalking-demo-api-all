@@ -1,0 +1,133 @@
+{
+  "info": {
+    "_postman_id": "2c2a1f2e-1234-4b1a-9abc-000000000001",
+    "name": "AT Sandbox Suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection to test Africa's Talking Sandbox endpoints locally."
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3000/health", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["health"] }
+      }
+    },
+    {
+      "name": "SMS - 1 way send",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"+254700000000\",\n  \"message\": \"Hello from sandbox\"\n}"
+        },
+        "url": { "raw": "http://localhost:3000/sms/send", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["sms", "send"] }
+      }
+    },
+    {
+      "name": "SMS - Bulk",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"recipients\": [\"+254700000001\", \"+254700000002\"],\n  \"message\": \"Hello bulk\"\n}"
+        },
+        "url": { "raw": "http://localhost:3000/sms/bulk", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["sms", "bulk"] }
+      }
+    },
+    {
+      "name": "SMS - Inbound (simulate)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "text", "value": "Hi" },
+            { "key": "from", "value": "+254700000000" },
+            { "key": "to", "value": "12345" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/sms/inbound", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["sms", "inbound"] }
+      }
+    },
+    {
+      "name": "USSD - Start",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "sessionId", "value": "abc" },
+            { "key": "serviceCode", "value": "*384*123#" },
+            { "key": "phoneNumber", "value": "+254700000000" },
+            { "key": "text", "value": "" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/ussd", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["ussd"] }
+      }
+    },
+    {
+      "name": "USSD - Option 1",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "sessionId", "value": "abc" },
+            { "key": "serviceCode", "value": "*384*123#" },
+            { "key": "phoneNumber", "value": "+254700000000" },
+            { "key": "text", "value": "1" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/ussd", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["ussd"] }
+      }
+    },
+    {
+      "name": "USSD - Option 2 amount",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "sessionId", "value": "abc" },
+            { "key": "serviceCode", "value": "*384*123#" },
+            { "key": "phoneNumber", "value": "+254700000000" },
+            { "key": "text", "value": "2*100" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/ussd", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["ussd"] }
+      }
+    },
+    {
+      "name": "Voice - Call",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"callFrom\": \"+254711000000\",\n  \"callTo\": \"+254700000000\"\n}"
+        },
+        "url": { "raw": "http://localhost:3000/voice/call", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["voice", "call"] }
+      }
+    },
+    {
+      "name": "Airtime - Send",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phoneNumber\": \"+254700000000\",\n  \"amount\": \"10\",\n  \"currencyCode\": \"KES\"\n}"
+        },
+        "url": { "raw": "http://localhost:3000/airtime/send", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["airtime", "send"] }
+      }
+    }
+  ]
+}

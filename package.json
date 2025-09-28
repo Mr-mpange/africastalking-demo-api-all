@@ -1,0 +1,33 @@
+{
+  "name": "africastalking-sandbox-suite",
+  "version": "1.0.0",
+  "description": "Africa's Talking sandbox demo: 1-way SMS, 2-way SMS, Bulk SMS, USSD, Voice, Airtime",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "africastalking",
+    "sms",
+    "ussd",
+    "voice",
+    "airtime",
+    "sandbox"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "africastalking": "^0.5.8",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "@google/generative-ai": "^0.17.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
