@@ -71,6 +71,60 @@ router.get('/events', (req, res) => {
   res.status(200).send('OK');
 });
 
+function buildMenuXml(selfUrl, introText = 'Welcome. Please choose an option.') {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>${introText}</Say>
+  <GetDigits timeout="20" numDigits="1" callbackUrl="${selfUrl}">
+    <Say>Press 1 for company information. Press 2 for operating hours. Press 3 to speak to an agent. Press 4 to repeat this menu. Press 5 to end the call.</Say>
+  </GetDigits>
+  <Say>No input received. Repeating the menu.</Say>
+  <Redirect>${selfUrl.replace('/digits', '/actions')}</Redirect>
+</Response>`;
+}
+
+function handleSelectionXml(digits) {
+  if (digits === '1') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Thanks for calling. Our live demo is running. Visit our website or reply via SMS for more info. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+  }
+  if (digits === '2') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Our operating hours are Monday to Friday, eight A M to six P M East Africa Time. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+  }
+  if (digits === '3') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>All agents are currently busy. Please try again later, or send us an SMS. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+  }
+  if (digits === '4') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Redirect>/voice/actions</Redirect>
+</Response>`;
+  }
+  if (digits === '5') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Thank you. Ending the call now. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Invalid choice. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+}
+
 // Voice actions (CCXML-like) - respond with simple instructions
 router.post('/actions', (req, res) => {
   console.log('[Voice Actions]', req.body);
@@ -84,74 +138,17 @@ router.post('/actions', (req, res) => {
   }
 
   if (!digits) {
-    // Present IVR menu and collect a single digit (no # needed). AT will POST back here with dtmfDigits
+    // Build menu pointing GetDigits to a dedicated /voice/digits callback
     const host = req.get('host');
     const baseUrl = `https://${host}`; // force https for AT callbacks via ngrok
-    const selfUrl = `${baseUrl}${req.originalUrl}`;
-    console.log('[Voice Actions] Using callbackUrl:', selfUrl);
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Welcome to the demo. Please listen carefully, then make a selection.</Say>
-  <GetDigits timeout="20" numDigits="1" callbackUrl="${selfUrl}">
-    <Say>Press 1 for company information. Press 2 for operating hours. Press 3 to speak to an agent. Press 4 to repeat this menu. Press 5 to end the call.</Say>
-  </GetDigits>
-  <Say>No input received. Repeating the menu.</Say>
-  <GetDigits timeout="20" numDigits="1" callbackUrl="${selfUrl}">
-    <Say>Press 1 for company information. Press 2 for operating hours. Press 3 to speak to an agent. Press 4 to repeat this menu. Press 5 to end the call.</Say>
-  </GetDigits>
-  <Say>Still no input received. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
+    const digitsUrl = `${baseUrl}${req.baseUrl}/digits`;
+    console.log('[Voice Actions] Using digits callbackUrl:', digitsUrl);
+    const xml = buildMenuXml(digitsUrl, 'Welcome to the demo. Please listen carefully, then make a selection.');
     return res.send(xml);
   }
 
-  // Handle selection
-  if (digits === '1') {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Thanks for calling. Our live demo is running. Visit our website or reply via SMS for more info. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-    return res.send(xml);
-  }
-  if (digits === '2') {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Our operating hours are Monday to Friday, eight A M to six P M East Africa Time. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-    return res.send(xml);
-  }
-  if (digits === '3') {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>All agents are currently busy. Please try again later, or send us an SMS. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-    return res.send(xml);
-  }
-  if (digits === '4') {
-    const selfUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}/actions`;
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Redirect>${selfUrl}</Redirect>
-</Response>`;
-    return res.send(xml);
-  }
-  if (digits === '5') {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Thank you. Ending the call now. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-    return res.send(xml);
-  }
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Invalid choice. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-  return res.send(xml);
+  // Handle selection (rare case AT posts digits here)
+  return res.send(handleSelectionXml(digits));
 });
 
 // Convenience GET for actions (browser test)
@@ -161,23 +158,10 @@ router.get('/actions', (req, res) => {
   const digits = req.query && (req.query.dtmfDigits || req.query.digits);
   if (!digits) {
     const host = req.get('host');
-    const baseUrl = `https://${host}`; // force https for AT callbacks via ngrok
-    const selfUrl = `${baseUrl}${req.originalUrl}`.split('?')[0];
-    console.log('[Voice Actions][GET] Using callbackUrl:', selfUrl);
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Welcome. Please choose an option.</Say>
-  <GetDigits timeout="20" numDigits="1" callbackUrl="${selfUrl}">
-    <Say>Press 1 for company information. Press 2 for operating hours. Press 3 to speak to an agent. Press 4 to repeat this menu. Press 5 to end the call.</Say>
-  </GetDigits>
-  <Say>No input received. Repeating the menu.</Say>
-  <GetDigits timeout="20" numDigits="1" callbackUrl="${selfUrl}">
-    <Say>Press 1 for company information. Press 2 for operating hours. Press 3 to speak to an agent. Press 4 to repeat this menu. Press 5 to end the call.</Say>
-  </GetDigits>
-  <Say>Still no input received. Goodbye.</Say>
-  <Hangup/>
-</Response>`;
-    return res.send(xml);
+    const baseUrl = `https://${host}`;
+    const digitsUrl = `${baseUrl}${req.baseUrl}/digits`;
+    console.log('[Voice Actions][GET] Using digits callbackUrl:', digitsUrl);
+    return res.send(buildMenuXml(digitsUrl));
   }
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -185,6 +169,21 @@ router.get('/actions', (req, res) => {
   <Hangup/>
 </Response>`;
   res.send(xml);
+});
+
+// Dedicated handler for DTMF callbacks from <GetDigits>
+router.post('/digits', (req, res) => {
+  console.log('[Voice Digits][POST]', req.body);
+  res.set('Content-Type', 'application/xml');
+  const digits = (req.body && (req.body.dtmfDigits || req.body.digits)) || '';
+  return res.send(handleSelectionXml(digits));
+});
+
+router.get('/digits', (req, res) => {
+  console.log('[Voice Digits][GET]', req.query);
+  res.set('Content-Type', 'application/xml');
+  const digits = (req.query && (req.query.dtmfDigits || req.query.digits)) || '';
+  return res.send(handleSelectionXml(digits || '5'));
 });
 
 module.exports = router;
