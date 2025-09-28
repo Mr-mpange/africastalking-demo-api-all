@@ -140,7 +140,7 @@ function handleSelectionXml(digits, lang = 'en') {
 </Response>`;
 }
 
-// Voice actions (CCXML-like) - respond with simple instructions
+// Voice actions – Language selection then IVR menu
 router.post('/actions', (req, res) => {
   console.log('[Voice Actions]', req.body);
   res.set('Content-Type', 'application/xml');
@@ -151,31 +151,26 @@ router.post('/actions', (req, res) => {
   if (isActive === '0') {
     return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
-
   if (!digits) {
-    // Forward all inbound calls directly to the inbound caller by default.
-    // Fallback to DEFAULT_RECIPIENT if callerNumber is unavailable.
-    const target = (req.body && req.body.callerNumber) || process.env.DEFAULT_RECIPIENT;
-    const callerId = process.env.AT_VOICE_PHONE_NUMBER || '';
+    // Language selection (1 English, 2 Swahili)
+    const host = req.get('host');
+    const baseUrl = `https://${host}`;
+    const langUrl = `${baseUrl}${req.baseUrl}/lang`;
+    console.log('[Voice Actions] Using language callbackUrl:', langUrl);
     if (isActive === '1') {
-      console.log('[Voice Actions][FIRST-HIT] Active call, forwarding to target:', target);
-    }
-    if (!target) {
-      const xmlErr = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>No forwarding number configured. Please set DEFAULT_RECIPIENT in environment.</Say>
-  <Hangup/>
-</Response>`;
-      return res.send(xmlErr);
+      console.log('[Voice Actions][FIRST-HIT] Active call, serving language selection');
     }
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial${callerId ? ` callerId="${callerId}"` : ''} phoneNumbers="${target}" />
+  <Say>Choose language. Press 1 for English. Press 2 for Swahili.</Say>
+  <GetDigits timeout="20" numDigits="1" callbackUrl="${langUrl}">
+    <Say>Press 1 for English. Press 2 for Swahili.</Say>
+  </GetDigits>
+  <Say>No input received. Returning to language selection.</Say>
+  <Redirect>${baseUrl}/voice/actions</Redirect>
 </Response>`;
     return res.send(xml);
   }
-
-  // Handle selection (rare case AT posts digits here)
   // Rare case AT posts digits here; default to English
   return res.send(handleSelectionXml(digits, 'en'));
 });
@@ -206,7 +201,7 @@ router.get('/actions', (req, res) => {
   <Say>You entered ${digits}. Goodbye.</Say>
   <Hangup/>
 </Response>`;
-  res.send(xml);
+  return res.send(xml);
 });
 
 // Dedicated handler for DTMF callbacks from <GetDigits>
