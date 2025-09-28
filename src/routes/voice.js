@@ -8,15 +8,22 @@ const voice = at.VOICE;
 // POST /voice/call - initiate a call from AT number to a recipient
 router.post('/call', async (req, res) => {
   try {
-    const { callFrom, callTo } = req.body; // E.164 numbers, e.g., +2547...
+    // Allow defaults from .env for convenience
+    const envFrom = process.env.AT_VOICE_PHONE_NUMBER;
+    const envTo = process.env.DEFAULT_RECIPIENT;
+    const bodyFrom = req.body && req.body.callFrom;
+    const bodyTo = req.body && req.body.callTo;
+    const callFrom = bodyFrom || envFrom; // must be your AT voice number
+    const callTo = bodyTo || envTo;       // destination/callee
+
     if (!callFrom || !callTo) {
-      return res.status(400).json({ error: 'callFrom and callTo are required' });
+      return res.status(400).json({ error: 'callFrom and callTo are required (provide in body or set AT_VOICE_PHONE_NUMBER and DEFAULT_RECIPIENT in .env)' });
     }
 
     // First try SDK
     try {
       const result = await voice.call({ callFrom, callTo });
-      return res.json({ ok: true, via: 'sdk', result });
+      return res.json({ ok: true, via: 'sdk', used: { callFrom, callTo }, result });
     } catch (sdkErr) {
       console.warn('[Voice] SDK call failed, attempting REST fallback:', sdkErr.message);
       // REST fallback
@@ -24,19 +31,14 @@ router.post('/call', async (req, res) => {
       if (!AT_USERNAME || !AT_API_KEY) {
         return res.status(500).json({ error: 'AT credentials missing for REST fallback' });
       }
-      // Safe auth logging (do NOT print full API key)
-      const apiPreview = AT_API_KEY.length > 8
-        ? `${AT_API_KEY.slice(0, 4)}...${AT_API_KEY.slice(-4)}`
-        : '***';
-      console.log('[Voice Auth]', { username: AT_USERNAME, apiKeyPreview: apiPreview, keyLength: AT_API_KEY.length });
-
+      // Build form data
       const form = new URLSearchParams();
       form.append('username', AT_USERNAME);
       form.append('from', callFrom);
       form.append('to', callTo);
 
+      // POST to AT Voice REST endpoint
       const voiceUrl = 'https://voice.africastalking.com/call';
-      console.log('[Voice] REST fallback POST', voiceUrl);
       const response = await axios.post(
         voiceUrl,
         form.toString(),
@@ -50,14 +52,13 @@ router.post('/call', async (req, res) => {
         }
       );
 
-      return res.json({ ok: true, via: 'rest', data: response.data });
+      return res.json({ ok: true, via: 'rest', used: { callFrom, callTo }, data: response.data });
     }
   } catch (err) {
     console.error('Voice call error', err);
     return res.status(500).json({ error: 'Failed to initiate call', details: err.message });
   }
 });
-
 // Voice events callback
 router.post('/events', (req, res) => {
   console.log('[Voice Events]', req.body);
@@ -152,25 +153,25 @@ router.post('/actions', (req, res) => {
   }
 
   if (!digits) {
-    // Step 1: Language selection (1 English, 2 Swahili)
-    const host = req.get('host');
-    const baseUrl = `https://${host}`;
-    const langUrl = `${baseUrl}${req.baseUrl}/lang`;
-    console.log('[Voice Actions] Using language callbackUrl:', langUrl);
-    // FIRST-HIT marker when call is active and no digits yet
+    // Forward all inbound calls directly to the inbound caller by default.
+    // Fallback to DEFAULT_RECIPIENT if callerNumber is unavailable.
+    const target = (req.body && req.body.callerNumber) || process.env.DEFAULT_RECIPIENT;
+    const callerId = process.env.AT_VOICE_PHONE_NUMBER || '';
     if (isActive === '1') {
-      console.log('[Voice Actions][FIRST-HIT] Active call, serving language selection');
+      console.log('[Voice Actions][FIRST-HIT] Active call, forwarding to target:', target);
+    }
+    if (!target) {
+      const xmlErr = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>No forwarding number configured. Please set DEFAULT_RECIPIENT in environment.</Say>
+  <Hangup/>
+</Response>`;
+      return res.send(xmlErr);
     }
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Choose language. Press 1 for English. Press 2 for Swahili.</Say>
-  <GetDigits timeout="20" numDigits="1" callbackUrl="${langUrl}">
-    <Say>Press 1 for English. Press 2 for Swahili.</Say>
-  </GetDigits>
-  <Say>No input received. Returning to language selection.</Say>
-  <Redirect>${baseUrl}/voice/actions</Redirect>
+  <Dial${callerId ? ` callerId="${callerId}"` : ''} phoneNumbers="${target}" />
 </Response>`;
-    console.log('[Voice Actions] XML preview:', xml.slice(0, 140).replace(/\n/g, ' '), '...');
     return res.send(xml);
   }
 
