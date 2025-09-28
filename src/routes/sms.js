@@ -18,7 +18,13 @@ router.post('/send', async (req, res) => {
       message,
     };
 
-    if (from) options.from = from; // senderId or shortcode if approved
+    if (from) {
+      options.from = from; // senderId or shortcode if approved
+    } else if (process.env.AT_FROM_SHORTCODE) {
+      options.from = String(process.env.AT_FROM_SHORTCODE);
+    } else {
+      console.warn('[SMS Send] No 2-way sender configured. Replies may NOT be delivered to your webhook. Set AT_FROM_SHORTCODE in .env or pass "from".');
+    }
 
     const response = await sms.send(options);
     return res.json({ ok: true, response });
