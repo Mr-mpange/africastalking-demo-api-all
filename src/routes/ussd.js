@@ -4,12 +4,16 @@ const axios = require('axios');
 
 const router = express.Router();
 const voice = at.VOICE;
+const sms = at.SMS;
 
 // USSD Endpoint
 // AT sends: sessionId, serviceCode, phoneNumber, text
 router.post('/', async (req, res) => {
   const { sessionId, serviceCode, phoneNumber, text } = req.body;
   console.log('[USSD]', { sessionId, serviceCode, phoneNumber, text });
+
+  // Use shortcode only in LIVE. In SANDBOX, omit 'from' so SMS comes from sandbox number
+  const isSandbox = (process.env.AT_USERNAME || 'sandbox') === 'sandbox';
 
   // Simple menu flow
   if (!text || text === '') {
@@ -19,6 +23,16 @@ router.post('/', async (req, res) => {
 
   if (text === '1') {
     const response = 'END Your balance is KES 123.45 (sandbox)';
+    // Fire-and-forget SMS confirmation
+    try {
+      const options = { to: [phoneNumber], message: 'Your balance is KES 123.45 (sandbox)' };
+      if (!isSandbox && process.env.AT_FROM_SHORTCODE) {
+        options.from = String(process.env.AT_FROM_SHORTCODE);
+      }
+      sms.send(options).catch(e => console.warn('[USSD][SMS][1] send failed:', e.message));
+    } catch (e) {
+      console.warn('[USSD][SMS][1] setup failed:', e.message);
+    }
     return res.send(response);
   }
 
@@ -31,10 +45,30 @@ router.post('/', async (req, res) => {
   if (text.startsWith('2*')) {
     const amount = text.split('*')[1] || '0';
     const response = `END Airtime purchase of KES ${amount} processed (sandbox).`;
+    // Fire-and-forget SMS confirmation
+    try {
+      const options = { to: [phoneNumber], message: `Airtime purchase of KES ${amount} processed (sandbox).` };
+      if (!isSandbox && process.env.AT_FROM_SHORTCODE) {
+        options.from = String(process.env.AT_FROM_SHORTCODE);
+      }
+      sms.send(options).catch(e => console.warn('[USSD][SMS][2*] send failed:', e.message));
+    } catch (e) {
+      console.warn('[USSD][SMS][2*] setup failed:', e.message);
+    }
     return res.send(response);
   }
 
   if (text === '3') {
+    // Fire-and-forget SMS help message
+    try {
+      const options = { to: [phoneNumber], message: 'For assistance, reply via SMS or choose option 4 to get a call.' };
+      if (!isSandbox && process.env.AT_FROM_SHORTCODE) {
+        options.from = String(process.env.AT_FROM_SHORTCODE);
+      }
+      sms.send(options).catch(e => console.warn('[USSD][SMS][3] send failed:', e.message));
+    } catch (e) {
+      console.warn('[USSD][SMS][3] setup failed:', e.message);
+    }
     return res.send('END For assistance, reply via SMS or choose option 4 to get a call.');
   }
 
@@ -70,6 +104,16 @@ router.post('/', async (req, res) => {
           timeout: 15000,
         });
         console.log('[USSD] Voice call initiated via REST', { callFrom, callTo });
+      }
+      // Fire-and-forget SMS confirmation of call
+      try {
+        const options = { to: [phoneNumber], message: 'We are calling you now. Please pick up.' };
+        if (!isSandbox && process.env.AT_FROM_SHORTCODE) {
+          options.from = String(process.env.AT_FROM_SHORTCODE);
+        }
+        sms.send(options).catch(e => console.warn('[USSD][SMS][4] send failed:', e.message));
+      } catch (e) {
+        console.warn('[USSD][SMS][4] setup failed:', e.message);
       }
       return res.send('END We are calling you now. Please pick up.');
     } catch (err) {
