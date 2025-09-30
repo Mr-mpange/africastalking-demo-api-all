@@ -24,6 +24,7 @@ app.use('/sms', require('./routes/sms'));
 app.use('/ussd', require('./routes/ussd'));
 app.use('/voice', require('./routes/voice'));
 app.use('/airtime', require('./routes/airtime'));
+app.use('/whatsapp', require('./routes/whatsapp'));
 
 // 404
 app.use((req, res) => {
