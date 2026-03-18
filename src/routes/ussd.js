@@ -159,11 +159,14 @@ router.post('/', async (req, res) => {
       // STEP 1*lang*1 → show project list
       if (s.length === 2) {
         const projects = await db.query(
-          'SELECT id, title FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 7'
+          `SELECT id, title, COALESCE(title_sw, title) AS title_sw
+           FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 7`
         );
         if (!projects.rows.length) return res.send(t.noProjects);
         let menu = t.selectProject;
-        projects.rows.forEach((p, i) => { menu += `${i + 1}. ${p.title}\n`; });
+        projects.rows.forEach((p, i) => {
+          menu += `${i + 1}. ${lang === 'sw' ? p.title_sw : p.title}\n`;
+        });
         menu += t.back;
         return res.send(menu);
       }
@@ -173,13 +176,18 @@ router.post('/', async (req, res) => {
 
       // Load projects for index lookup
       const projects = await db.query(
-        'SELECT id, title, description FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 7'
+        `SELECT id, title, description,
+                COALESCE(title_sw, title) AS title_sw,
+                COALESCE(description_sw, description) AS description_sw
+         FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 7`
       );
       const projectIdx = parseInt(s[2], 10) - 1;
       if (isNaN(projectIdx) || projectIdx < 0 || projectIdx >= projects.rows.length) {
         return res.send(t.invalid);
       }
       const project = projects.rows[projectIdx];
+      const projectTitle = lang === 'sw' ? project.title_sw : project.title;
+      const projectDesc  = lang === 'sw' ? project.description_sw : project.description;
 
       // STEP lang*1*N → show project info
       if (s.length === 3) {
@@ -187,13 +195,15 @@ router.post('/', async (req, res) => {
           'SELECT COUNT(*) FROM research_questions WHERE project_id = $1 AND is_active = true',
           [project.id]
         );
-        return res.send(t.projectInfo(project.title, project.description, qCount.rows[0].count));
+        return res.send(t.projectInfo(projectTitle, projectDesc, qCount.rows[0].count));
       }
 
       // Back to project list
       if (s[3] === '0') {
         let menu = t.selectProject;
-        projects.rows.forEach((p, i) => { menu += `${i + 1}. ${p.title}\n`; });
+        projects.rows.forEach((p, i) => {
+          menu += `${i + 1}. ${lang === 'sw' ? p.title_sw : p.title}\n`;
+        });
         menu += t.back;
         return res.send(menu);
       }
@@ -243,8 +253,8 @@ router.post('/', async (req, res) => {
             await saveResponse(lastQ.id, project.id, phoneNumber, lastAnswer);
           }
 
-          sendSms(phoneNumber, t.smsDone(project.title));
-          return res.send(t.done(project.title, questions.rows.length));
+          sendSms(phoneNumber, t.smsDone(projectTitle));
+          return res.send(t.done(projectTitle, questions.rows.length));
         }
       }
     }

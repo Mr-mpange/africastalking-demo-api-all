@@ -153,7 +153,8 @@ router.post('/lang', async (req, res) => {
 
   try {
     const projects = await db.query(
-      `SELECT id, title FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
+      `SELECT id, title, COALESCE(title_sw, title) AS title_sw
+       FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
     );
 
     if (!projects.rows.length) {
@@ -162,7 +163,8 @@ router.post('/lang', async (req, res) => {
 
     let projectSay = t.selectProject + ' ';
     projects.rows.forEach((p, i) => {
-      projectSay += `Press ${i + 1} for ${p.title}. `;
+      const name = lang === 'sw' ? p.title_sw : p.title;
+      projectSay += `Press ${i + 1} for ${name}. `;
     });
 
     return res.send(xml(
@@ -187,13 +189,17 @@ router.get('/lang', async (req, res) => {
   const t     = T[lang];
 
   const projects = await db.query(
-    `SELECT id, title FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
+    `SELECT id, title, COALESCE(title_sw, title) AS title_sw
+     FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
   ).catch(() => ({ rows: [] }));
 
   if (!projects.rows.length) return res.send(xml(say(t.noProjects), '<Hangup/>'));
 
   let projectSay = t.selectProject + ' ';
-  projects.rows.forEach((p, i) => { projectSay += `Press ${i + 1} for ${p.title}. `; });
+  projects.rows.forEach((p, i) => {
+    const name = lang === 'sw' ? p.title_sw : p.title;
+    projectSay += `Press ${i + 1} for ${name}. `;
+  });
 
   return res.send(xml(
     `<GetDigits timeout="15" numDigits="1" callbackUrl="${base}/voice/project?lang=${lang}">`,
@@ -216,7 +222,8 @@ router.post('/project', async (req, res) => {
 
   try {
     const projects = await db.query(
-      `SELECT id, title FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
+      `SELECT id, title, COALESCE(title_sw, title) AS title_sw
+       FROM research_projects WHERE is_active = true ORDER BY created_at DESC LIMIT 5`
     );
 
     const idx = parseInt(digit, 10) - 1;
@@ -225,10 +232,11 @@ router.post('/project', async (req, res) => {
     }
 
     const project = projects.rows[idx];
+    const projectTitle = lang === 'sw' ? project.title_sw : project.title;
 
     return res.send(xml(
       `<GetDigits timeout="15" numDigits="1" callbackUrl="${base}/voice/survey?lang=${lang}&projectId=${project.id}&q=0">`,
-      say(t.confirmStart(project.title)),
+      say(t.confirmStart(projectTitle)),
       `</GetDigits>`,
       say(t.invalidChoice),
       `<Redirect>${base}/voice/lang?digit=${lang === 'sw' ? '2' : '1'}</Redirect>`
@@ -307,8 +315,12 @@ router.post('/survey', async (req, res) => {
 
     // ── All questions done ────────────────────────────────────────────────
     if (qIdx >= questions.rows.length) {
-      const projResult = await db.query('SELECT title FROM research_projects WHERE id = $1', [projectId]);
-      const title = projResult.rows[0]?.title || 'the survey';
+      const projResult = await db.query(
+        `SELECT title, COALESCE(title_sw, title) AS title_sw FROM research_projects WHERE id = $1`,
+        [projectId]
+      );
+      const proj = projResult.rows[0];
+      const title = lang === 'sw' ? proj?.title_sw : proj?.title || 'the survey';
       return res.send(xml(say(t.done(title)), '<Hangup/>'));
     }
 
