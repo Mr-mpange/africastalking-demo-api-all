@@ -1,6 +1,7 @@
 const express = require('express');
 const at = require('../config/at');
 const { generateReply } = require('../services/ai');
+const smsController = require('../controllers/smsController');
 
 const router = express.Router();
 const sms = at.SMS;
@@ -26,6 +27,9 @@ router.use((req, res, next) => {
   }
   next();
 });
+
+// GET /sms/statistics - SMS statistics
+router.get('/statistics', smsController.getStatistics);
 
 // POST /sms/send - 1-way SMS
 router.post('/send', async (req, res) => {
