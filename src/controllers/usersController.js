@@ -8,7 +8,7 @@ class UsersController {
     try {
       const result = await db.query(`
         SELECT id, username, email, full_name, role, status, is_active, 
-               created_at, updated_at
+               created_at, updated_at, approval_date, approved_by, rejection_reason
         FROM users
         ORDER BY created_at DESC
       `);
@@ -265,7 +265,7 @@ class UsersController {
   async getPendingUsers(req, res) {
     try {
       const result = await db.query(`
-        SELECT id, username, email, full_name, role, status, created_at
+        SELECT id, username, email, full_name, role, status, created_at, rejection_reason
         FROM users
         WHERE status = 'pending'
         ORDER BY created_at ASC
@@ -286,14 +286,17 @@ class UsersController {
   async approveUser(req, res) {
     try {
       const { userId } = req.params;
+      const approvedBy = req.user?.id || req.user?.userId || null;
 
       const result = await db.query(`
         UPDATE users
         SET status = 'active',
+            approval_date = NOW(),
+            approved_by = $2,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1 AND status = 'pending'
-        RETURNING id, username, email, full_name, role, status
-      `, [userId]);
+        RETURNING id, username, email, full_name, role, status, approval_date, approved_by
+      `, [userId, approvedBy]);
 
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'User not found or not pending approval' });
@@ -321,10 +324,11 @@ class UsersController {
       const result = await db.query(`
         UPDATE users
         SET status = 'rejected',
+            rejection_reason = $2,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1 AND status = 'pending'
-        RETURNING id, username, email, full_name, role, status
-      `, [userId]);
+        RETURNING id, username, email, full_name, role, status, rejection_reason
+      `, [userId, reason || null]);
 
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'User not found or not pending approval' });
