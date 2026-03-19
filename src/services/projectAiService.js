@@ -59,18 +59,14 @@ Return ONLY valid JSON, no markdown.`;
 
       const summary_text = insights.summary || raw;
 
-      // Upsert: replace existing summary for same project+question
+      // Upsert: insert or update on (project_id, question_id) unique constraint
       await db.query(`
         INSERT INTO ai_summaries (project_id, question_id, summary_text, insights_json)
         VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING
-      `, [project_id, question_id, summary_text, JSON.stringify(insights)]);
-
-      // Also try update if already exists
-      await db.query(`
-        UPDATE ai_summaries
-        SET summary_text = $3, insights_json = $4, created_at = NOW()
-        WHERE project_id = $1 AND (question_id = $2 OR ($2 IS NULL AND question_id IS NULL))
+        ON CONFLICT ON CONSTRAINT ai_summaries_project_question_unique
+        DO UPDATE SET summary_text = EXCLUDED.summary_text,
+                      insights_json = EXCLUDED.insights_json,
+                      created_at = NOW()
       `, [project_id, question_id, summary_text, JSON.stringify(insights)]);
 
       logger.info('AI summary generated', { project_id, question_id });

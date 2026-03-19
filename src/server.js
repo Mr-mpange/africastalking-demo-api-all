@@ -40,6 +40,18 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Run migrations lazily on first request (avoids Cloud SQL cold-start timeout)
+let migrationsDone = false;
+app.use((req, res, next) => {
+  if (!migrationsDone) {
+    migrationsDone = true;
+    runMigrations()
+      .then(() => console.log('Migrations complete'))
+      .catch(err => { console.error('Migration error:', err.message); migrationsDone = false; });
+  }
+  next();
+});
+
 // Routes
 app.use('/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));
@@ -60,13 +72,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start
-app.listen(PORT, async () => {
-  try {
-    await runMigrations();
-    console.log('Migrations complete');
-  } catch (err) {
-    console.error('Migration error (non-fatal):', err.message);
-  }
+app.listen(PORT, () => {
   console.log('Server running on http://localhost:' + PORT);
 });
 
