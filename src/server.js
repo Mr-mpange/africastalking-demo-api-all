@@ -3,6 +3,7 @@ const morgan = require('morgan');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const errorHandler = require('./middleware/errorHandler');
+const runMigrations = require('./database/migrate');
 
 dotenv.config();
 
@@ -59,7 +60,13 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  try {
+    await runMigrations();
+    console.log('Migrations complete');
+  } catch (err) {
+    console.error('Migration error (non-fatal):', err.message);
+  }
   console.log('Server running on http://localhost:' + PORT);
 });
 

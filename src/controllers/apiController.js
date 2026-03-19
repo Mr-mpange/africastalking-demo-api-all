@@ -66,14 +66,14 @@ class APIController {
         });
       }
 
-      const { title, title_sw, description, question_text, question_text_sw, category, language = 'en' } = req.body;
+      const { title, title_sw, description, question_text, question_text_sw, category, language = 'en', researcher_id, researcher_name } = req.body;
       const createdBy = req.user?.id || req.user?.userId || null;
 
       const result = await db.query(`
-        INSERT INTO research_questions (title, title_sw, description, question_text, question_text_sw, category, language, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO research_questions (title, title_sw, description, question_text, question_text_sw, category, language, created_by, researcher_id, researcher_name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
-      `, [title, title_sw || null, description, question_text, question_text_sw || null, category, language, createdBy]);
+      `, [title, title_sw || null, description, question_text, question_text_sw || null, category, language, createdBy, researcher_id || null, researcher_name || null]);
 
       logger.info('Question created', { questionId: result.rows[0].id });
 
@@ -92,7 +92,7 @@ class APIController {
   async updateQuestion(req, res) {
     try {
       const { questionId } = req.params;
-      const { title, title_sw, description, question_text, question_text_sw, category, is_active } = req.body;
+      const { title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id, researcher_name } = req.body;
 
       const existingResult = await db.query('SELECT * FROM research_questions WHERE id = $1', [questionId]);
       if (existingResult.rows.length === 0) {
@@ -108,10 +108,12 @@ class APIController {
             question_text_sw = COALESCE($5, question_text_sw),
             category = COALESCE($6, category),
             is_active = COALESCE($7, is_active),
+            researcher_id = COALESCE($8, researcher_id),
+            researcher_name = COALESCE($9, researcher_name),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $8
+        WHERE id = $10
         RETURNING *
-      `, [title, title_sw, description, question_text, question_text_sw, category, is_active, questionId]);
+      `, [title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id || null, researcher_name || null, questionId]);
 
       logger.info('Question updated', { questionId });
 
