@@ -9,37 +9,38 @@ class APIController {
     try {
       const { language, category, active } = req.query;
 
-      let query = 'SELECT * FROM research_questions WHERE 1=1';
+      let query = `SELECT rq.*, rp.title as project_title
+        FROM research_questions rq
+        LEFT JOIN research_projects rp ON rq.project_id = rp.id
+        WHERE 1=1`;
       const params = [];
       let paramIndex = 1;
 
       if (language && language !== '') {
-        query += ` AND language = $${paramIndex}`;
+        query += ` AND rq.language = $${paramIndex}`;
         params.push(language);
         paramIndex++;
       }
 
       if (category && category !== '') {
-        query += ` AND category = $${paramIndex}`;
+        query += ` AND rq.category = $${paramIndex}`;
         params.push(category);
         paramIndex++;
       }
 
       if (active !== undefined && active !== '') {
-        query += ` AND is_active = $${paramIndex}`;
+        query += ` AND rq.is_active = $${paramIndex}`;
         params.push(active === 'true');
         paramIndex++;
       }
 
-      query += ' ORDER BY created_at DESC';
+      query += ' ORDER BY rp.title NULLS LAST, rq.order_index ASC, rq.created_at ASC';
 
       const result = await db.query(query, params);
 
       res.json({
         success: true,
-        data: {
-          questions: result.rows
-        }
+        data: { questions: result.rows }
       });
 
     } catch (error) {
@@ -66,14 +67,24 @@ class APIController {
         });
       }
 
-      const { title, title_sw, description, question_text, question_text_sw, category, language = 'en', researcher_id, researcher_name } = req.body;
+      const { title, title_sw, description, question_text, question_text_sw, category, language = 'en', researcher_id, researcher_name, project_id } = req.body;
       const createdBy = req.user?.id || req.user?.userId || null;
 
+      // Auto-compute order_index as next number within the project
+      let orderIndex = 1;
+      if (project_id) {
+        const countResult = await db.query(
+          'SELECT COUNT(*) as cnt FROM research_questions WHERE project_id = $1',
+          [project_id]
+        );
+        orderIndex = parseInt(countResult.rows[0].cnt) + 1;
+      }
+
       const result = await db.query(`
-        INSERT INTO research_questions (title, title_sw, description, question_text, question_text_sw, category, language, created_by, researcher_id, researcher_name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO research_questions (title, title_sw, description, question_text, question_text_sw, category, language, created_by, researcher_id, researcher_name, project_id, order_index)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
-      `, [title, title_sw || null, description, question_text, question_text_sw || null, category, language, createdBy, researcher_id || null, researcher_name || null]);
+      `, [title, title_sw || null, description, question_text, question_text_sw || null, category, language, createdBy, researcher_id || null, researcher_name || null, project_id || null, orderIndex]);
 
       logger.info('Question created', { questionId: result.rows[0].id });
 
@@ -92,7 +103,7 @@ class APIController {
   async updateQuestion(req, res) {
     try {
       const { questionId } = req.params;
-      const { title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id, researcher_name } = req.body;
+      const { title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id, researcher_name, project_id } = req.body;
 
       const existingResult = await db.query('SELECT * FROM research_questions WHERE id = $1', [questionId]);
       if (existingResult.rows.length === 0) {
@@ -110,10 +121,11 @@ class APIController {
             is_active = COALESCE($7, is_active),
             researcher_id = COALESCE($8, researcher_id),
             researcher_name = COALESCE($9, researcher_name),
+            project_id = COALESCE($10, project_id),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $10
+        WHERE id = $11
         RETURNING *
-      `, [title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id || null, researcher_name || null, questionId]);
+      `, [title, title_sw, description, question_text, question_text_sw, category, is_active, researcher_id || null, researcher_name || null, project_id || null, questionId]);
 
       logger.info('Question updated', { questionId });
 
