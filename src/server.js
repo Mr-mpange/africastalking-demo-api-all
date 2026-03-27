@@ -54,9 +54,9 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/auth', require('./routes/auth'));
-app.use('/api', require('./routes/api'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/projects', require('./routes/projects'));
+app.use('/api', require('./routes/api'));
 app.use('/sms', require('./routes/sms'));
 app.use('/ussd', require('./routes/ussd'));
 app.use('/voice', require('./routes/voice'));

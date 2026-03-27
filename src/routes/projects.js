@@ -32,6 +32,23 @@ router.get('/:id/responses', authenticate, ctrl.getResponses.bind(ctrl));
 // Protected — get AI summaries
 router.get('/:id/ai-summary', authenticate, ctrl.getAISummary.bind(ctrl));
 
+// Protected — view airtime rewards for a project
+router.get('/:id/rewards', authenticate, authorize('researcher', 'admin'), async (req, res) => {
+  try {
+    const result = await require('../database/connection').query(`
+      SELECT r.*, p.name AS participant_name
+      FROM airtime_rewards r
+      LEFT JOIN participants p ON p.id = r.participant_id
+      WHERE r.project_id = $1
+      ORDER BY r.created_at DESC
+    `, [req.params.id]);
+    res.json({ success: true, data: { rewards: result.rows, total: result.rows.length } });
+  } catch (err) {
+    logger.error('Get rewards error:', err);
+    res.status(500).json({ error: 'Failed to get rewards' });
+  }
+});
+
 // Protected — manually trigger AI summary generation
 router.post('/:id/ai-summary/generate', authenticate, authorize('researcher', 'admin'), async (req, res) => {
   try {

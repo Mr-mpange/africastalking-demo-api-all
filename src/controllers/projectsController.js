@@ -208,7 +208,11 @@ class ProjectsController {
       // Trigger batch AI processing (every 10 responses)
       this._maybeTriggerAI(project_id, question_id).catch(() => {});
 
-      res.status(201).json({ success: true, data: { response: result.rows[0] } });
+      // Send 50 TZS airtime reward on first response per project (fire-and-forget)
+      const { sendReward } = require('../services/airtimeRewardService');
+      sendReward(participant_id, project_id, phone_number).catch(() => {});
+
+      res.status(201).json({ success: true, data: { response: result.rows[0], reward: { amount: 50, currency: 'TZS', message: 'Airtime reward will be sent to your number' } } });
     } catch (err) {
       logger.error('Submit response error:', err);
       res.status(500).json({ error: 'Failed to submit response' });
