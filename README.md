@@ -10,7 +10,7 @@ It also includes scaffolding for WhatsApp (inbound webhook and outbound send) vi
 
 ## Setup
 1. Clone or open this project in your IDE.
-2. Create a `.env` file based on `.env.example` and fill:
+2. Create a `.env` file based on `.env.example` and fill in your Africa's Talking credentials:
    - `AT_USERNAME=sandbox`
    - `AT_API_KEY=your_sandbox_api_key`
    - Optionally adjust `PORT` (default 3000)
