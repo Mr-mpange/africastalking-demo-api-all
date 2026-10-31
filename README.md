@@ -28,7 +28,7 @@ It also includes scaffolding for WhatsApp (inbound webhook and outbound send) vi
    # or
    npm start
    ```
-5. Health check: open http://localhost:3000/health
+5. Health check: open http://localhost:3000/health. The route index is available at http://localhost:3000/api.
 
 ## Ngrok (for webhooks)
 Expose your local server:
@@ -39,10 +39,10 @@ Copy the https URL, e.g. `https://abc123.ngrok.io`
 
 ### Configure Callbacks in Africa's Talking Sandbox Dashboard
 - SMS (2-way inbound): set the Inbound Callback URL to `https://<ngrok>/sms/inbound`
-- USSD: set the Service Callback URL to `https://<ngrok>/ussd`
+- USSD: set the Service Callback URL to `https://<ngrok>/ussd` (or `/ussd/callback`)
 - Voice:
   - Events URL: `https://<ngrok>/voice/events`
-  - Actions URL: `https://<ngrok>/voice/actions`
+  - Voice callback URL (for inbound calls and call instructions): `https://<ngrok>/voice/actions` (alias: `/voice/inbound`)
 - WhatsApp:
   - Inbound/Webhook URL: `https://<ngrok>/whatsapp/webhook`
 
@@ -62,14 +62,17 @@ Note: exact placement may vary in the dashboard under products' settings.
 ### USSD
 - POST `/ussd`
   - AT posts: `sessionId, serviceCode, phoneNumber, text`
-  - Respond with strings starting with `CON` to continue, or `END` to finish.
+  - Respond with strings starting with `CON` to continue, or `END` to finish. Select 1 to send an SMS to the caller, or 2 to request airtime for the caller. Both use the same credentials as the direct APIs.
+
+### Route index
+- GET `/api` lists all currently mounted solutions and their routes.
 
 ### Voice
-- POST `/voice/call`
+- POST `/voice/call` (alias: `/voice/outbound`)
   - Body: `{ "callFrom": "+254711000000", "callTo": "+254700000000" }`
-  - Initiates a call via AT Voice.
-- POST `/voice/events` (webhook)
-- POST `/voice/actions` (instructions). Returns simple XML-ish response.
+  - Initiates an outbound call via the Africa's Talking Node SDK. `callFrom` can be omitted when `AT_VOICE_PHONE_NUMBER` is configured. Optional `clientRequestId` can be supplied for tracking. Requires Voice-enabled numbers and a valid API key.
+- POST `/voice/inbound` (alias: `/voice/actions`): Voice callback for inbound calls and call instructions. Returns XML for the IVR menu.
+- POST `/voice/events`: call status callback.
 
 ### Airtime
 - POST `/airtime/send`

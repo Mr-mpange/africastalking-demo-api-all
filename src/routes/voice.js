@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const at = require('../config/at');
 
 const router = express.Router();
@@ -10,15 +9,22 @@ function xml(...body) {
 }
 
 function say(text) {
-  return `<Say>${text}</Say>`;
+  const safeText = String(text).replace(/[<>&"']/g, (char) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    '"': '&quot;',
+    "'": '&apos;',
+  })[char]);
+  return `<Say>${safeText}</Say>`;
 }
 
-// POST /voice/actions — Voice callback (IVR instructions)
-router.post('/actions', (req, res) => {
+// Shared handler for the configured voice callback and explicit inbound alias.
+function voiceActions(req, res) {
   res.set('Content-Type', 'application/xml');
   console.log('[Voice Actions]', req.body);
 
-  const { isActive, dtmfDigits } = req.body;
+  const { isActive, dtmfDigits } = req.body || {};
 
   if (String(isActive) === '0') {
     return res.send(xml());
@@ -42,7 +48,10 @@ router.post('/actions', (req, res) => {
   }
 
   return res.send(xml(say('Goodbye.'), '<Hangup/>'));
-});
+}
+
+// Configure either /voice/actions or /voice/inbound as the Voice callback URL.
+router.post(['/actions', '/inbound'], voiceActions);
 
 // POST /voice/events — call status events
 router.post('/events', (req, res) => {
@@ -55,36 +64,26 @@ router.get('/events', (req, res) => {
   res.status(200).send('OK');
 });
 
-// POST /voice/call — outbound call
-router.post('/call', async (req, res) => {
+// POST /voice/call or /voice/outbound — outbound call.
+router.post(['/call', '/outbound'], async (req, res) => {
   try {
-    const callFrom = req.body.callFrom || process.env.AT_VOICE_PHONE_NUMBER;
-    const callTo = req.body.callTo;
+    if (!process.env.AT_API_KEY) {
+      return res.status(503).json({ error: 'AT_API_KEY is not configured' });
+    }
+
+    const { callFrom: requestedFrom, callTo, clientRequestId } = req.body || {};
+    const callFrom = requestedFrom || process.env.AT_VOICE_PHONE_NUMBER;
     if (!callFrom || !callTo) {
       return res.status(400).json({ error: 'callFrom and callTo are required' });
     }
 
-    try {
-      const result = await voice.call({ callFrom, callTo });
-      return res.json({ ok: true, via: 'sdk', result });
-    } catch (sdkErr) {
-      const form = new URLSearchParams();
-      form.append('username', process.env.AT_USERNAME);
-      form.append('from', callFrom);
-      form.append('to', callTo);
-      const r = await axios.post('https://voice.africastalking.com/call', form.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
-          apikey: process.env.AT_API_KEY,
-        },
-        timeout: 15000,
-      });
-      return res.json({ ok: true, via: 'rest', data: r.data });
-    }
+    const result = await voice.call({ callFrom, callTo, clientRequestId });
+    return res.json({ ok: true, result });
   } catch (err) {
-    console.error('[Voice Call] error', err);
-    return res.status(500).json({ error: 'Failed to initiate call', details: err.message });
+    const status = err.response?.status || 502;
+    const details = err.response?.data || err.message || 'Africa\'s Talking Voice request failed';
+    console.error('[Voice Call] error', details);
+    return res.status(status).json({ error: 'Failed to initiate call', details });
   }
 });
 

@@ -13,7 +13,14 @@ const router = express.Router();
 // - AT_WHATSAPP_SENDER (your WhatsApp-enabled number or sender identifier)
 // - AT_WHATSAPP_WEBHOOK_SECRET (optional: to verify webhook signatures if configured)
 
-const { AT_USERNAME, AT_API_KEY, AT_WHATSAPP_API_URL, AT_WHATSAPP_SENDER } = process.env;
+function getConfig() {
+  return {
+    username: process.env.AT_USERNAME,
+    apiKey: process.env.AT_API_KEY,
+    apiUrl: process.env.AT_WHATSAPP_API_URL,
+    sender: process.env.AT_WHATSAPP_SENDER,
+  };
+}
 
 // Simple request logger for troubleshooting
 router.use((req, res, next) => {
@@ -37,24 +44,24 @@ router.use((req, res, next) => {
 // Body: { to: "+2547..." | ["+2547..."], message: "text", mediaUrl?: "https://...", template?: {...} }
 router.post('/send', async (req, res) => {
   try {
-    if (!AT_USERNAME || !AT_API_KEY) {
+    const { username, apiKey, apiUrl, sender } = getConfig();
+    if (!username || !apiKey) {
       return res.status(500).json({ error: 'Missing AT credentials. Set AT_USERNAME and AT_API_KEY in your .env' });
     }
-    if (!AT_WHATSAPP_API_URL) {
+    if (!apiUrl) {
       return res.status(500).json({ error: 'Missing AT_WHATSAPP_API_URL. Ask support for the correct WhatsApp send endpoint or add it when available.' });
     }
 
     const { to, message, mediaUrl, template } = req.body || {};
-    if (!to || (!message && !template)) {
+    const toList = Array.isArray(to) ? to : String(to || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (toList.length === 0 || (!message && !template)) {
       return res.status(400).json({ error: 'to and (message or template) are required' });
     }
 
-    const toList = Array.isArray(to) ? to : String(to).split(',').map(s => s.trim()).filter(Boolean);
-
     const payload = {
-      username: AT_USERNAME,
-      from: AT_WHATSAPP_SENDER, // may be required depending on setup
-      to: toList,
+      username,
+      from: sender, // may be required depending on setup
+      to: toList.length === 1 ? toList[0] : toList,
       message,
       mediaUrl,
       template, // if using template messages, pass the object provided by AT guidelines
@@ -65,11 +72,11 @@ router.post('/send', async (req, res) => {
 
     // Many AT REST endpoints accept x-www-form-urlencoded; others accept JSON.
     // We try JSON first; adjust if your product requires form encoding.
-    const response = await axios.post(AT_WHATSAPP_API_URL, payload, {
+    const response = await axios.post(apiUrl, payload, {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        apikey: AT_API_KEY,
+        apikey: apiKey,
       },
       timeout: 20000,
     });

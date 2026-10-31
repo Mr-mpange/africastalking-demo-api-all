@@ -22,6 +22,23 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api', (req, res) => {
+  res.json({
+    ok: true,
+    solutions: {
+      sms: { send: 'POST /sms/send', bulk: 'POST /sms/bulk', inbound: 'POST /sms/inbound' },
+      ussd: { callback: 'POST /ussd' },
+      voice: {
+        outbound: 'POST /voice/outbound (alias: /voice/call)',
+        inbound: 'POST /voice/inbound (alias: /voice/actions)',
+        events: 'POST /voice/events',
+      },
+      airtime: { send: 'POST /airtime/send' },
+      whatsapp: { send: 'POST /whatsapp/send', webhook: 'POST /whatsapp/webhook' },
+    },
+  });
+});
+
 app.use('/sms', require('./routes/sms'));
 app.use('/ussd', require('./routes/ussd'));
 app.use('/voice', require('./routes/voice'));

@@ -12,14 +12,15 @@ router.use((req, res, next) => {
 // POST /sms/send
 router.post('/send', async (req, res) => {
   try {
-    const { to, message, from } = req.body;
-    if (!to || !message) {
+    const { to, message, from } = req.body || {};
+    const toList = Array.isArray(to) ? to : String(to || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (toList.length === 0 || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'to and message are required' });
     }
 
     const isSandbox = (process.env.AT_USERNAME || 'sandbox') === 'sandbox';
     const options = {
-      to: Array.isArray(to) ? to : String(to).split(',').map((s) => s.trim()).filter(Boolean),
+      to: toList,
       message,
     };
 
@@ -40,16 +41,15 @@ router.post('/send', async (req, res) => {
 // POST /sms/bulk
 router.post('/bulk', async (req, res) => {
   try {
-    const { recipients, message, from } = req.body;
-    if (!recipients || !message) {
+    const { recipients, message, from } = req.body || {};
+    const toList = Array.isArray(recipients)
+      ? recipients
+      : String(recipients || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (toList.length === 0 || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'recipients and message are required' });
     }
 
     const isSandbox = (process.env.AT_USERNAME || 'sandbox') === 'sandbox';
-    const toList = Array.isArray(recipients)
-      ? recipients
-      : String(recipients).split(',').map((s) => s.trim()).filter(Boolean);
-
     const options = { to: toList, message };
     if (from) {
       options.from = from;
