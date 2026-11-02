@@ -118,6 +118,65 @@
       }
     },
     {
+      "name": "Voice - Inbound callback (simulate)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "isActive", "value": "1" },
+            { "key": "callerCountryCode", "value": "255" },
+            { "key": "callerNumber", "value": "+255627088461" },
+            { "key": "destinationNumber", "value": "+255699920003" },
+            { "key": "sessionId", "value": "ATVId_test_session" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/voice/actions", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["voice", "actions"] }
+      }
+    },
+    {
+      "name": "Voice - Inbound callback after digit 1 (simulate)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "isActive", "value": "1" },
+            { "key": "callerCountryCode", "value": "255" },
+            { "key": "callerNumber", "value": "+255627088461" },
+            { "key": "destinationNumber", "value": "+255699920003" },
+            { "key": "sessionId", "value": "ATVId_test_session" },
+            { "key": "dtmfDigits", "value": "1" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/voice/actions", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["voice", "actions"] }
+      }
+    },
+    {
+      "name": "Voice - Events callback (simulate)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "callSessionState", "value": "Completed" },
+            { "key": "direction", "value": "Inbound" },
+            { "key": "callerNumber", "value": "+255627088461" },
+            { "key": "destinationNumber", "value": "+255699920003" },
+            { "key": "sessionId", "value": "ATVId_test_session" },
+            { "key": "isActive", "value": "0" },
+            { "key": "status", "value": "Success" },
+            { "key": "durationInSeconds", "value": "15" },
+            { "key": "currencyCode", "value": "TZS" }
+          ]
+        },
+        "url": { "raw": "http://localhost:3000/voice/events", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["voice", "events"] }
+      }
+    },
+    {
       "name": "Airtime - Send",
       "request": {
         "method": "POST",
