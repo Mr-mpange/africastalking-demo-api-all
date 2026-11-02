@@ -26,6 +26,8 @@ function voiceActions(req, res) {
 
   const { isActive, dtmfDigits } = req.body || {};
 
+  // Africa's Talking calls this callback for the lifetime of an active call.
+  // An inactive call should return an empty response and must not start a new menu.
   if (String(isActive) === '0') {
     return res.send(xml());
   }
@@ -36,21 +38,20 @@ function voiceActions(req, res) {
         say("Welcome to Africa's Talking voice sandbox."),
         '<GetDigits timeout="15" numDigits="1">',
         say('Press 1 to hear a greeting. Press 2 to hang up.'),
-        '</GetDigits>',
-        say('No input received. Goodbye.'),
-        '<Hangup/>'
+        '</GetDigits>'
       )
     );
   }
 
   if (dtmfDigits === '1') {
-    return res.send(xml(say('Hello from the sandbox.'), '<Hangup/>'));
+    return res.send(xml(say('Hello from the sandbox.')));
   }
 
-  return res.send(xml(say('Goodbye.'), '<Hangup/>'));
+  return res.send(xml(say('Goodbye.')));
 }
 
-// Configure either /voice/actions or /voice/inbound as the Voice callback URL.
+// Configure this public callback URL in the Africa's Talking Voice dashboard
+// for the number that should receive inbound calls.
 router.post(['/actions', '/inbound'], voiceActions);
 
 // POST /voice/events — call status events

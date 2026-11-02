@@ -42,7 +42,7 @@ Copy the https URL, e.g. `https://abc123.ngrok.io`
 - USSD: set the Service Callback URL to `https://<ngrok>/ussd` (or `/ussd/callback`)
 - Voice:
   - Events URL: `https://<ngrok>/voice/events`
-  - Voice callback URL (for inbound calls and call instructions): `https://<ngrok>/voice/actions` (alias: `/voice/inbound`)
+  - Voice callback URL (for inbound calls and call instructions): `https://<your-public-domain>/voice/actions` (alias: `/voice/inbound`). Set this in the Africa's Talking Voice dashboard for the Voice-enabled number people will call. The route answers with a short IVR: press 1 for a greeting, or press 2 to hang up. For local development, expose the server with ngrok and use its HTTPS URL.
 - WhatsApp:
   - Inbound/Webhook URL: `https://<ngrok>/whatsapp/webhook`
 
